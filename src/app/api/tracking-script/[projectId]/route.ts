@@ -28,8 +28,8 @@ export async function GET(
 
     // Replace placeholders in template
     const script = trackingScriptTemplate
-      .replace('__TRACKING_ID__', project.trackingId)
-      .replace('__API_ENDPOINT__', baseUrl)
+      .replaceAll('__TRACKING_ID__', project.trackingId)
+      .replaceAll('__API_ENDPOINT__', baseUrl)
 
     return new NextResponse(script, {
       headers: {

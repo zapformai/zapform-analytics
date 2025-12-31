@@ -45,7 +45,8 @@ export function DashboardBreadcrumb() {
 
   // Determine current page
   const isSettingsPage = pathname.includes('/settings')
-  const isProjectAnalytics = projectId && !isSettingsPage
+  const isActionsPage = pathname.includes('/actions')
+  const isProjectAnalytics = projectId && !isSettingsPage && !isActionsPage
   const isDashboardHome = pathname === '/dashboard'
 
   return (
@@ -70,7 +71,7 @@ export function DashboardBreadcrumb() {
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              {isSettingsPage ? (
+              {isSettingsPage || isActionsPage ? (
                 <BreadcrumbLink asChild>
                   <Link href={`/dashboard/${projectId}`}>{project.name}</Link>
                 </BreadcrumbLink>
@@ -95,6 +96,15 @@ export function DashboardBreadcrumb() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage>Analytics</BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
+
+        {isActionsPage && project && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Actions</BreadcrumbPage>
             </BreadcrumbItem>
           </>
         )}

@@ -184,10 +184,388 @@ export const trackingScriptTemplate = `
     }
   }
 
+  // ============================================================================
+  // ENGAGEMENT ACTIONS MODULE
+  // ============================================================================
+
+  var actionsEndpoint = '__API_ENDPOINT__/api/actions/active/' + config.trackingId;
+  var trackActionEndpoint = '__API_ENDPOINT__/api/track-action';
+  var activeActions = [];
+  var displayedActions = {};
+  var actionElements = {};
+
+  // Escape HTML
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // URL pattern matching
+  function matchesUrlPattern(pattern, matchType) {
+    var currentUrl = window.location.href;
+    var pathname = window.location.pathname;
+
+    switch(matchType) {
+      case 'exact':
+        return currentUrl === pattern || pathname === pattern;
+      case 'startsWith':
+        return currentUrl.indexOf(pattern) === 0 || pathname.indexOf(pattern) === 0;
+      case 'regex':
+        try {
+          return new RegExp(pattern).test(currentUrl);
+        } catch(e) {
+          return false;
+        }
+      case 'contains':
+      default:
+        return currentUrl.indexOf(pattern) > -1 || pathname.indexOf(pattern) > -1;
+    }
+  }
+
+  // Check if action should display
+  function shouldDisplayAction(action) {
+    if (displayedActions[action.id]) {
+      return false;
+    }
+
+    if (!action.urlPatterns || action.urlPatterns.length === 0) {
+      return true;
+    }
+
+    for (var i = 0; i < action.urlPatterns.length; i++) {
+      if (matchesUrlPattern(action.urlPatterns[i], action.urlMatchType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Track action interaction
+  function trackAction(actionId, type) {
+    var sessionToken = getOrCreateSession();
+    var payload = {
+      actionId: actionId,
+      trackingId: config.trackingId,
+      sessionToken: sessionToken,
+      type: type,
+      url: window.location.href
+    };
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(trackActionEndpoint, JSON.stringify(payload));
+    } else {
+      fetch(trackActionEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(function() {});
+    }
+  }
+
+  // Close action
+  function closeAction(actionId) {
+    if (actionElements[actionId]) {
+      var elements = actionElements[actionId];
+      if (elements.overlay && elements.overlay.parentNode) {
+        elements.overlay.parentNode.removeChild(elements.overlay);
+      }
+      if (elements.container && elements.container.parentNode) {
+        elements.container.parentNode.removeChild(elements.container);
+      }
+      delete actionElements[actionId];
+    }
+  }
+
+  // Get action styles
+  function getActionStyles(action) {
+    var styling = action.styling || {};
+    var baseStyles =
+      'position: fixed; z-index: 999999; ' +
+      'background: ' + (styling.backgroundColor || '#fff') + '; ' +
+      'padding: ' + (styling.padding || '24px') + '; ' +
+      'border-radius: ' + (styling.borderRadius || '8px') + '; ' +
+      'box-shadow: 0 4px 20px rgba(0,0,0,0.15); ' +
+      'font-family: ' + (styling.fontFamily || 'system-ui, -apple-system, sans-serif') + '; ' +
+      'font-size: ' + (styling.fontSize || '16px') + '; ';
+
+    var position = styling.position || 'center';
+    var width = styling.width || '400px';
+    var maxWidth = 'calc(100vw - 32px)';
+
+    switch(position) {
+      case 'center':
+        baseStyles += 'top: 50%; left: 50%; transform: translate(-50%, -50%); ';
+        break;
+      case 'top':
+        baseStyles += 'top: 16px; left: 50%; transform: translateX(-50%); ';
+        break;
+      case 'bottom':
+        baseStyles += 'bottom: 16px; left: 50%; transform: translateX(-50%); ';
+        break;
+      case 'top-right':
+        baseStyles += 'top: 16px; right: 16px; ';
+        break;
+      case 'top-left':
+        baseStyles += 'top: 16px; left: 16px; ';
+        break;
+      case 'bottom-right':
+        baseStyles += 'bottom: 16px; right: 16px; ';
+        break;
+      case 'bottom-left':
+        baseStyles += 'bottom: 16px; left: 16px; ';
+        break;
+    }
+
+    baseStyles += 'width: ' + width + '; max-width: ' + maxWidth + '; ';
+
+    if (styling.height) {
+      baseStyles += 'height: ' + styling.height + '; ';
+    }
+
+    return baseStyles;
+  }
+
+  // Apply animation
+  function applyAnimation(container, overlay, animation) {
+    container.style.opacity = '0';
+    if (overlay) overlay.style.opacity = '0';
+
+    setTimeout(function() {
+      container.style.transition = 'all 0.3s ease';
+      if (overlay) overlay.style.transition = 'opacity 0.3s ease';
+
+      switch(animation) {
+        case 'slide':
+          container.style.transform += ' translateY(-20px)';
+          break;
+        case 'scale':
+          container.style.transform += ' scale(0.9)';
+          break;
+      }
+
+      setTimeout(function() {
+        container.style.opacity = '1';
+        if (overlay) overlay.style.opacity = '1';
+        if (animation === 'slide' || animation === 'scale') {
+          container.style.transform = container.style.transform
+            .replace('translateY(-20px)', '')
+            .replace('scale(0.9)', '');
+        }
+      }, 10);
+    }, 10);
+  }
+
+  // Create action element
+  function createActionElement(action) {
+    var styling = action.styling || {};
+    var content = action.content || {};
+
+    // Create overlay
+    var overlay = null;
+    if (styling.overlay !== false) {
+      overlay = document.createElement('div');
+      overlay.style.cssText =
+        'position: fixed; top: 0; left: 0; right: 0; bottom: 0; ' +
+        'background: ' + (styling.overlayColor || 'rgba(0,0,0,0.5)') + '; ' +
+        'z-index: 999998; transition: opacity 0.3s ease;';
+
+      if (content.dismissable !== false) {
+        overlay.onclick = function() {
+          closeAction(action.id);
+          trackAction(action.id, 'dismiss');
+        };
+      }
+    }
+
+    // Create container
+    var container = document.createElement('div');
+    container.setAttribute('data-zf-action', action.id);
+    container.style.cssText = getActionStyles(action);
+
+    // Build content HTML
+    var html = '';
+    if (content.title) {
+      html += '<h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: ' +
+              (styling.textColor || '#000') + ';">' + escapeHtml(content.title) + '</h3>';
+    }
+    if (content.message) {
+      html += '<p style="margin: 0 0 16px 0; color: ' +
+              (styling.textColor || '#000') + '; line-height: 1.5;">' +
+              escapeHtml(content.message) + '</p>';
+    }
+
+    // Add buttons
+    var buttonsHtml = '<div style="display: flex; gap: 8px; justify-content: flex-end;">';
+    if (content.dismissable !== false) {
+      buttonsHtml += '<button data-zf-dismiss style="' +
+        'padding: 8px 16px; border: 1px solid #ccc; background: #fff; ' +
+        'color: #333; border-radius: 4px; cursor: pointer; font-size: 14px;">' +
+        'Dismiss</button>';
+    }
+    if (content.ctaText && content.ctaUrl) {
+      buttonsHtml += '<button data-zf-cta style="' +
+        'padding: 8px 16px; border: none; ' +
+        'background: ' + (styling.buttonColor || '#000') + '; ' +
+        'color: ' + (styling.buttonTextColor || '#fff') + '; ' +
+        'border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">' +
+        escapeHtml(content.ctaText) + '</button>';
+    }
+    buttonsHtml += '</div>';
+
+    html += buttonsHtml;
+    container.innerHTML = html;
+
+    // Event handlers
+    var dismissBtn = container.querySelector('[data-zf-dismiss]');
+    if (dismissBtn) {
+      dismissBtn.onclick = function(e) {
+        e.stopPropagation();
+        closeAction(action.id);
+        trackAction(action.id, 'dismiss');
+      };
+    }
+
+    var ctaBtn = container.querySelector('[data-zf-cta]');
+    if (ctaBtn) {
+      ctaBtn.onclick = function(e) {
+        e.stopPropagation();
+        trackAction(action.id, 'click');
+        if (content.ctaUrl) {
+          window.location.href = content.ctaUrl;
+        }
+        closeAction(action.id);
+      };
+    }
+
+    // Apply animation
+    applyAnimation(container, overlay, styling.animation || 'fade');
+
+    return { container: container, overlay: overlay };
+  }
+
+  // Display action
+  function displayAction(action) {
+    if (displayedActions[action.id]) return;
+
+    var elements = createActionElement(action);
+    actionElements[action.id] = elements;
+
+    if (elements.overlay) {
+      document.body.appendChild(elements.overlay);
+    }
+    document.body.appendChild(elements.container);
+
+    displayedActions[action.id] = true;
+    trackAction(action.id, 'impression');
+  }
+
+  // Setup time trigger
+  function setupTimeTrigger(action) {
+    var delayMs = action.trigger.delayMs || 3000;
+    setTimeout(function() {
+      if (shouldDisplayAction(action)) {
+        displayAction(action);
+      }
+    }, delayMs);
+  }
+
+  // Setup scroll trigger
+  function setupScrollTrigger(action) {
+    var targetPercentage = action.trigger.percentage || 50;
+    var triggered = false;
+
+    var scrollHandler = function() {
+      if (triggered) return;
+
+      var scrollPercent = Math.round(
+        (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100
+      );
+
+      if (scrollPercent >= targetPercentage && shouldDisplayAction(action)) {
+        triggered = true;
+        displayAction(action);
+        if (window.removeEventListener) {
+          window.removeEventListener('scroll', scrollHandler);
+        } else if (window.detachEvent) {
+          window.detachEvent('onscroll', scrollHandler);
+        }
+      }
+    };
+
+    if (window.addEventListener) {
+      window.addEventListener('scroll', scrollHandler, { passive: true });
+    } else if (window.attachEvent) {
+      window.attachEvent('onscroll', scrollHandler);
+    }
+  }
+
+  // Setup exit intent trigger
+  function setupExitIntentTrigger(action) {
+    var triggered = false;
+    var sensitivity = action.trigger.sensitivity || 'medium';
+    var threshold = sensitivity === 'low' ? 100 : sensitivity === 'high' ? 10 : 50;
+
+    var exitHandler = function(e) {
+      if (triggered) return;
+      if (e.clientY <= threshold && shouldDisplayAction(action)) {
+        triggered = true;
+        displayAction(action);
+        if (document.removeEventListener) {
+          document.removeEventListener('mouseout', exitHandler);
+        } else if (document.detachEvent) {
+          document.detachEvent('onmouseout', exitHandler);
+        }
+      }
+    };
+
+    if (document.addEventListener) {
+      document.addEventListener('mouseout', exitHandler);
+    } else if (document.attachEvent) {
+      document.attachEvent('onmouseout', exitHandler);
+    }
+  }
+
+  // Initialize actions
+  function initializeActions() {
+    for (var i = 0; i < activeActions.length; i++) {
+      var action = activeActions[i];
+
+      switch(action.trigger.type) {
+        case 'time':
+          setupTimeTrigger(action);
+          break;
+        case 'scroll':
+          setupScrollTrigger(action);
+          break;
+        case 'exit':
+          setupExitIntentTrigger(action);
+          break;
+      }
+    }
+  }
+
+  // Fetch active actions
+  function fetchActions() {
+    fetch(actionsEndpoint)
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        activeActions = data.actions || [];
+        initializeActions();
+      })
+      .catch(function(error) {
+        // Silent fail
+      });
+  }
+
   // Initialize tracking
   function init() {
     // Track initial page view
     trackPageView();
+
+    // Fetch and initialize engagement actions
+    fetchActions();
 
     // Track clicks
     if (document.addEventListener) {

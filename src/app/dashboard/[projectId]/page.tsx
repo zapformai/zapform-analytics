@@ -22,6 +22,17 @@ interface AnalyticsData {
   topClicks: Array<{ elementSelector: string; elementText: string | null; count: number }>
   scrollDepthByPage: Array<{ url: string; avgScrollDepth: number }>
   pageViewsByDay: Array<{ date: string; count: number }>
+  actionsPerformance: Array<{
+    actionId: string
+    actionName: string
+    actionType: string
+    impressions: number
+    clicks: number
+    dismissals: number
+    conversions: number
+    ctr: number
+    conversionRate: number
+  }>
 }
 
 export default function AnalyticsDashboardPage() {
@@ -271,6 +282,61 @@ export default function AnalyticsDashboardPage() {
                       <p className="text-sm font-medium truncate">{scroll.url}</p>
                     </div>
                     <Badge variant="secondary">{scroll.avgScrollDepth}%</Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Performance */}
+        <Card className="mx-4 lg:mx-6">
+          <CardHeader>
+            <CardTitle>Actions Performance</CardTitle>
+            <CardDescription>Engagement action metrics and conversion rates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {data.actionsPerformance.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No actions created yet</p>
+              ) : (
+                data.actionsPerformance.map((action) => (
+                  <div key={action.actionId} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{action.actionName}</p>
+                          <Badge variant="outline" className="text-xs">{action.actionType}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                          <span>{action.impressions.toLocaleString()} impressions</span>
+                          <span>•</span>
+                          <span>{action.clicks.toLocaleString()} clicks</span>
+                          {action.dismissals > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{action.dismissals.toLocaleString()} dismissals</span>
+                            </>
+                          )}
+                          {action.conversions > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>{action.conversions.toLocaleString()} conversions</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="secondary" className="font-semibold">
+                          {action.ctr.toFixed(1)}% CTR
+                        </Badge>
+                        {action.conversions > 0 && (
+                          <Badge variant="default" className="text-xs">
+                            {action.conversionRate.toFixed(1)}% Conv
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))
               )}

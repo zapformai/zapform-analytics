@@ -192,6 +192,72 @@ export async function GET(
       }
     })
 
+    // Get action performance metrics
+    const actions = await prisma.action.findMany({
+      where: { projectId },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        _count: {
+          select: {
+            interactions: {
+              where: {
+                timestamp: {
+                  gte: startDate,
+                  lte: endDate
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Get detailed interaction counts for each action
+    const actionsPerformance = await Promise.all(
+      actions.map(async (action) => {
+        const interactions = await prisma.actionInteraction.groupBy({
+          by: ['type'],
+          where: {
+            actionId: action.id,
+            timestamp: {
+              gte: startDate,
+              lte: endDate
+            }
+          },
+          _count: {
+            type: true
+          }
+        })
+
+        const impressions = interactions.find(i => i.type === 'impression')?._count.type || 0
+        const clicks = interactions.find(i => i.type === 'click')?._count.type || 0
+        const dismissals = interactions.find(i => i.type === 'dismiss')?._count.type || 0
+        const conversions = interactions.find(i => i.type === 'conversion')?._count.type || 0
+
+        const ctr = impressions > 0 ? ((clicks / impressions) * 100) : 0
+        const conversionRate = clicks > 0 ? ((conversions / clicks) * 100) : 0
+
+        return {
+          actionId: action.id,
+          actionName: action.name,
+          actionType: action.type,
+          impressions,
+          clicks,
+          dismissals,
+          conversions,
+          ctr: parseFloat(ctr.toFixed(2)),
+          conversionRate: parseFloat(conversionRate.toFixed(2))
+        }
+      })
+    )
+
+    // Sort by impressions and take top 10
+    const topActions = actionsPerformance
+      .sort((a, b) => b.impressions - a.impressions)
+      .slice(0, 10)
+
     return NextResponse.json({
       overview: {
         totalPageViews,
@@ -220,7 +286,8 @@ export async function GET(
         url: s.url,
         avgScrollDepth: Math.round(s._avg.maxScroll || 0)
       })),
-      pageViewsByDay: [] // Simplified - can be enhanced later with proper date grouping
+      pageViewsByDay: [], // Simplified - can be enhanced later with proper date grouping
+      actionsPerformance: topActions
     })
   } catch (error) {
     console.error('Analytics error:', error)

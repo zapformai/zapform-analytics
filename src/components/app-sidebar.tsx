@@ -9,6 +9,7 @@ import {
   IconFolder,
   IconSettings,
   IconChevronDown,
+  IconLocation,
 } from "@tabler/icons-react"
 
 import { NavUser } from "@/components/nav-user"
@@ -95,7 +96,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link href="/dashboard">
-                <IconChartBar className="!size-5" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg ">
+                  <img src="/zapform_logo.svg" alt="" />
+                </div>
                 <span className="text-base font-semibold">ZapForm Analytics</span>
               </Link>
             </SidebarMenuButton>
@@ -166,6 +169,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 <Link href={`/dashboard/${project.id}`}>
                                   <IconChartBar />
                                   <span>Analytics</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={pathname === `/dashboard/${project.id}/actions`}
+                              >
+                                <Link href={`/dashboard/${project.id}/actions`}>
+                                  <IconLocation />
+                                  <span>Actions</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

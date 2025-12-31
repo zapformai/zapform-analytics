@@ -81,11 +81,13 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pageViews         PageView[]
-  clickEvents       ClickEvent[]
-  scrollEvents      ScrollEvent[]
-  analyticsSessions AnalyticsSession[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pageViews          PageView[]
+  clickEvents        ClickEvent[]
+  scrollEvents       ScrollEvent[]
+  analyticsSessions  AnalyticsSession[]
+  actions            Action[]
+  actionInteractions ActionInteraction[]
 
   @@index([userId])
   @@index([trackingId])
@@ -168,12 +170,77 @@ model AnalyticsSession {
   lastActivity DateTime @default(now())
   duration     Int      @default(0) // Seconds
 
-  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  pageViews    PageView[]
-  clickEvents  ClickEvent[]
-  scrollEvents ScrollEvent[]
+  project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pageViews          PageView[]
+  clickEvents        ClickEvent[]
+  scrollEvents       ScrollEvent[]
+  actionInteractions ActionInteraction[]
 
   @@index([projectId, startTime])
   @@index([sessionToken])
   @@map("analytics_sessions")
+}
+
+// ============================================================================
+// Engagement Actions Models
+// ============================================================================
+
+model Action {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+
+  // Action Type & Trigger
+  type    String // 'popup', 'banner', 'modal'
+  trigger Json   // Flexible trigger config: { type, delayMs?, percentage?, sensitivity? }
+
+  // Content
+  content Json // { title, message, ctaText?, ctaUrl?, dismissable }
+
+  // Styling (Advanced Customization)
+  styling Json // { position, width, height?, backgroundColor, textColor, buttonColor, buttonTextColor, borderRadius, padding, fontSize, fontFamily?, overlay, overlayColor, animation }
+
+  // Targeting
+  urlPatterns  String[] // Array of URL patterns: ['/pricing', '/blog/*', '*/checkout']
+  urlMatchType String   @default("contains") // 'exact', 'contains', 'startsWith', 'regex'
+
+  // Status & Scheduling
+  isActive Boolean @default(true)
+  priority Int     @default(0) // Higher priority actions show first if multiple match
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  interactions ActionInteraction[]
+
+  @@index([projectId, isActive])
+  @@index([projectId, priority])
+  @@map("actions")
+}
+
+model ActionInteraction {
+  id        String   @id @default(cuid())
+  actionId  String
+  projectId String
+  sessionId String
+
+  // Interaction Type
+  type String // 'impression', 'click', 'dismiss', 'conversion'
+
+  // Context
+  url       String   @db.Text
+  timestamp DateTime @default(now())
+
+  // Relations
+  action  Action           @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  session AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([actionId, type, timestamp])
+  @@index([projectId, timestamp])
+  @@index([sessionId])
+  @@map("action_interactions")
 }
