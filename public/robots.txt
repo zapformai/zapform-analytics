@@ -1,0 +1,10 @@
+# Robots.txt for ZapForm Analytics
+# https://analytics.zapform.ai
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+
+# Sitemap
+Sitemap: https://analytics.zapform.ai/sitemap.xml

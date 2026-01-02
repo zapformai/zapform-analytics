@@ -16,8 +16,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ZapForm Analytics",
-  description: "Track and analyze your website visitors with powerful, privacy-focused analytics",
+  title: "ZapForm Analytics - Privacy-First Web Analytics",
+  description: "Track and analyze your website visitors with powerful, privacy-focused analytics. GDPR-compliant analytics platform for modern websites.",
+  keywords: ["web analytics", "privacy-focused analytics", "GDPR compliant", "website tracking", "user analytics"],
+  authors: [{ name: "ZapForm" }],
+  creator: "ZapForm",
+  publisher: "ZapForm",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://analytics.zapform.ai',
+    title: 'ZapForm Analytics',
+    description: 'Privacy-first web analytics platform',
+    siteName: 'ZapForm Analytics',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ZapForm Analytics',
+    description: 'Privacy-first web analytics platform',
+  },
+  // verification: {
+  //   google: 'google-site-verification-token', // You'll need to replace this after adding your site to Search Console
+  // },
 };
 
 // TODO: Replace with your actual tracking ID from the dashboard

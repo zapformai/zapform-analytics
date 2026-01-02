@@ -1,0 +1,7 @@
+Contact: mailto:security@zapform.ai
+Expires: 2026-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://analytics.zapform.ai/.well-known/security.txt
+
+# ZapForm Analytics Security Policy
+# We take security seriously. Please report any security vulnerabilities responsibly.
